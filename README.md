@@ -2,6 +2,8 @@
 
 Um aplicativo de lista de tarefas interativo para terminal, desenvolvido em Python com interface curses.
 
+![TaskFast em ação](images/terminal.png)
+
 ## Características
 
 - ✅ Interface visual moderna no terminal
