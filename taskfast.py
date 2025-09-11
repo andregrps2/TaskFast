@@ -4,6 +4,8 @@ import os
 import sys
 from datetime import datetime, timedelta
 import calendar
+import locale
+import platform
 
 # Obtém o diretório onde o executável está localizado
 if getattr(sys, 'frozen', False):
@@ -358,22 +360,54 @@ def desenhar_legendas_compactas(stdscr, linha_inicial, col_width, offset_x=0):
 
 def main(stdscr):
     # Configurações iniciais para otimizar a interface
-    curses.curs_set(0)  # Esconde cursor inicialmente
-    stdscr.nodelay(False)  # Entrada bloqueante
-    stdscr.timeout(-1)  # Sem timeout
-    stdscr.clear()  # Limpa a tela para começar fresh
+    try:
+        # Tenta configurar a localização para UTF-8
+        if platform.system() != "Windows":
+            try:
+                locale.setlocale(locale.LC_ALL, '')
+            except:
+                pass
+        
+        # Configurações de terminal mais seguras
+        curses.curs_set(0)  # Esconde cursor inicialmente
+        stdscr.nodelay(False)  # Entrada bloqueante
+        stdscr.timeout(-1)  # Sem timeout
+        stdscr.clear()  # Limpa a tela para começar fresh
+        
+        # Verifica se o terminal suporta cores
+        if not curses.has_colors():
+            raise Exception("Terminal não suporta cores")
+            
+        # Configuração de cores mais robusta
+        curses.start_color()
+        curses.use_default_colors()  # Usa cores padrão do terminal
+        
+        # Define pares de cores de forma mais segura
+        try:
+            curses.init_pair(1, curses.COLOR_GREEN, -1)    # feito
+            curses.init_pair(2, curses.COLOR_WHITE, -1)    # pendente normal
+            curses.init_pair(3, curses.COLOR_BLACK, curses.COLOR_WHITE)    # highlight
+            curses.init_pair(4, curses.COLOR_CYAN, -1)     # destaque especial
+            curses.init_pair(5, curses.COLOR_YELLOW, -1)   # data atual
+            curses.init_pair(6, curses.COLOR_RED, -1)      # hoje
+            curses.init_pair(7, curses.COLOR_YELLOW, -1)   # tarefa de hoje
+            curses.init_pair(8, curses.COLOR_MAGENTA, -1)  # tarefa do passado (laranja simulado)
+            curses.init_pair(9, 8, -1)                    # tarefa do futuro (cinza escuro)
+        except:
+            # Se falhar ao configurar cores, usa padrões básicos
+            for i in range(1, 10):
+                try:
+                    curses.init_pair(i, curses.COLOR_WHITE, -1)
+                except:
+                    pass
     
-    # Configuração de cores
-    curses.start_color()
-    curses.init_pair(1, curses.COLOR_GREEN, curses.COLOR_BLACK)    # feito
-    curses.init_pair(2, curses.COLOR_WHITE, curses.COLOR_BLACK)    # pendente normal
-    curses.init_pair(3, curses.COLOR_BLACK, curses.COLOR_WHITE)    # highlight
-    curses.init_pair(4, curses.COLOR_CYAN, curses.COLOR_BLACK)     # destaque especial
-    curses.init_pair(5, curses.COLOR_YELLOW, curses.COLOR_BLACK)   # data atual
-    curses.init_pair(6, curses.COLOR_RED, curses.COLOR_BLACK)      # hoje
-    curses.init_pair(7, curses.COLOR_YELLOW, curses.COLOR_BLACK)   # tarefa de hoje
-    curses.init_pair(8, curses.COLOR_MAGENTA, curses.COLOR_BLACK)  # tarefa do passado (laranja simulado)
-    curses.init_pair(9, 8, curses.COLOR_BLACK)                    # tarefa do futuro (cinza escuro)
+    except Exception as e:
+        # Se falhar na inicialização, tenta uma configuração mais básica
+        try:
+            stdscr.clear()
+            curses.curs_set(0)
+        except:
+            pass
 
     idx = 0
     historico = carregar_historico()
@@ -487,8 +521,17 @@ def main(stdscr):
             
             # Quebra o texto em múltiplas linhas se necessário
             if len(linha_completa) <= max_texto_width:
-                # Texto cabe em uma linha
-                stdscr.addstr(linha_atual_tarefa, 2, linha_completa, cor)
+                # Desenha o texto com tratamento de erro
+                try:
+                    stdscr.addstr(linha_atual_tarefa, 2, linha_completa, cor)
+                except curses.error:
+                    # Se falhar ao desenhar, tenta sem cor
+                    try:
+                        stdscr.addstr(linha_atual_tarefa, 2, linha_completa)
+                    except curses.error:
+                        # Se ainda falhar, trunca o texto
+                        texto_truncado = linha_completa[:max_texto_width-3] + "..."
+                        stdscr.addstr(linha_atual_tarefa, 2, texto_truncado)
                 linha_atual_tarefa += 1
             else:
                 # Texto precisa ser quebrado em múltiplas linhas
@@ -499,10 +542,22 @@ def main(stdscr):
                     if len(texto_restante) <= max_texto_width:
                         # Última parte do texto
                         if primeira_linha:
-                            stdscr.addstr(linha_atual_tarefa, 2, texto_restante, cor)
+                            try:
+                                stdscr.addstr(linha_atual_tarefa, 2, texto_restante, cor)
+                            except curses.error:
+                                try:
+                                    stdscr.addstr(linha_atual_tarefa, 2, texto_restante)
+                                except curses.error:
+                                    pass
                         else:
                             # Continua com indentação
-                            stdscr.addstr(linha_atual_tarefa, 6, texto_restante, cor)
+                            try:
+                                stdscr.addstr(linha_atual_tarefa, 6, texto_restante, cor)
+                            except curses.error:
+                                try:
+                                    stdscr.addstr(linha_atual_tarefa, 6, texto_restante)
+                                except curses.error:
+                                    pass
                         texto_restante = ""
                     else:
                         # Precisa quebrar a linha
@@ -520,11 +575,23 @@ def main(stdscr):
                             texto_restante = texto_restante[max_texto_width:]
                         
                         if primeira_linha:
-                            stdscr.addstr(linha_atual_tarefa, 2, linha_para_mostrar, cor)
+                            try:
+                                stdscr.addstr(linha_atual_tarefa, 2, linha_para_mostrar, cor)
+                            except curses.error:
+                                try:
+                                    stdscr.addstr(linha_atual_tarefa, 2, linha_para_mostrar)
+                                except curses.error:
+                                    pass
                             primeira_linha = False
                         else:
                             # Continua com indentação para mostrar que é continuação
-                            stdscr.addstr(linha_atual_tarefa, 6, linha_para_mostrar, cor)
+                            try:
+                                stdscr.addstr(linha_atual_tarefa, 6, linha_para_mostrar, cor)
+                            except curses.error:
+                                try:
+                                    stdscr.addstr(linha_atual_tarefa, 6, linha_para_mostrar)
+                                except curses.error:
+                                    pass
                     
                     linha_atual_tarefa += 1
             
@@ -908,11 +975,180 @@ def main(stdscr):
             else:
                 last_key = None
 
+# Função para detectar terminal compatível
+def verificar_compatibilidade_terminal():
+    """Verifica se o terminal é compatível com curses"""
+    try:
+        # Verifica variáveis de ambiente importantes
+        term = os.environ.get('TERM', '')
+        
+        # Lista de terminais conhecidos como problemáticos
+        terminais_problematicos = ['dumb', 'unknown']
+        
+        if term.lower() in terminais_problematicos:
+            return False, f"Terminal '{term}' não é compatível"
+        
+        # Para macOS, aceita a maioria dos terminais
+        if platform.system() == "Darwin":
+            # Se tem TERM definido e não está na lista problemática, aceita
+            if term and term not in terminais_problematicos:
+                return True, "Terminal macOS compatível"
+        
+        # Verifica se estamos no VS Code (mas não bloqueia automaticamente)
+        if 'VSCODE' in os.environ or 'TERM_PROGRAM' in os.environ:
+            term_program = os.environ.get('TERM_PROGRAM', '')
+            if 'vscode' in term_program.lower():
+                # Apenas avisa, mas ainda tenta
+                return True, "Terminal VS Code (tentativa)"
+        
+        # Testa inicialização básica do curses
+        import curses
+        test_screen = curses.initscr()
+        curses.endwin()
+        
+        return True, "Terminal compatível"
+    except Exception as e:
+        return False, f"Erro na verificação: {str(e)}"
+
+def executar_modo_fallback():
+    """Modo texto simples quando curses não funciona"""
+    print("=" * 60)
+    print("TASKFAST - MODO TEXTO SIMPLES")
+    print("=" * 60)
+    print("O terminal atual não suporta a interface gráfica completa.")
+    print("Executando em modo de compatibilidade...")
+    print()
+    
+    historico = carregar_historico()
+    data_atual = datetime.now()
+    data_str = get_data_string(data_atual)
+    tarefas = carregar_tarefas_do_dia(historico, data_str)
+    
+    while True:
+        print(f"\n📅 Data atual: {formatar_data_completa(data_atual)}")
+        print("─" * 50)
+        
+        if not tarefas:
+            print("Nenhuma tarefa para hoje.")
+        else:
+            for i, tarefa in enumerate(tarefas):
+                status = "[✓]" if tarefa["feito"] else "[ ]"
+                tempo_relativo = ""
+                if 'origem' in tarefa and not tarefa["feito"]:
+                    tempo_relativo = calcular_tempo_relativo(tarefa['origem'], data_str)
+                    if tempo_relativo:
+                        tempo_relativo = f" ({tempo_relativo})"
+                
+                print(f"{i+1:2d}. {status} {tarefa['texto']}{tempo_relativo}")
+        
+        print("\n" + "─" * 50)
+        print("Comandos: [n]ova tarefa, [m]arcar feito (num), [d]ia anterior, [p]róximo dia, [s]air")
+        
+        try:
+            comando = input("Digite o comando: ").strip().lower()
+        except KeyboardInterrupt:
+            print("\nSaindo...")
+            break
+        
+        if comando == 's':
+            break
+        elif comando == 'n':
+            nova_tarefa = input("Digite a nova tarefa: ").strip()
+            if nova_tarefa:
+                tarefas.append({"texto": nova_tarefa, "feito": False})
+                print(f"Tarefa '{nova_tarefa}' adicionada!")
+        elif comando == 'd':
+            salvar_tarefas_do_dia(historico, data_str, tarefas)
+            data_atual = data_atual - timedelta(days=1)
+            data_str = get_data_string(data_atual)
+            tarefas = carregar_tarefas_do_dia(historico, data_str)
+        elif comando == 'p':
+            salvar_tarefas_do_dia(historico, data_str, tarefas)
+            data_atual = data_atual + timedelta(days=1)
+            data_str = get_data_string(data_atual)
+            tarefas = carregar_tarefas_do_dia(historico, data_str)
+        elif comando.isdigit():
+            num = int(comando) - 1
+            if 0 <= num < len(tarefas):
+                tarefas[num]["feito"] = not tarefas[num]["feito"]
+                status = "concluída" if tarefas[num]["feito"] else "pendente"
+                print(f"Tarefa {num+1} marcada como {status}")
+        
+        # Salva as alterações
+        salvar_tarefas_do_dia(historico, data_str, tarefas)
+        salvar_historico(historico)
+
 # Executa o programa com tratamento de erro para terminais
-try:
-    curses.wrapper(main)
-except Exception as e:
-    print(f"Erro ao inicializar o terminal: {e}")
-    print("Certifique-se de que está executando em um terminal compatível.")
-    print("No Windows, execute através do Prompt de Comando ou PowerShell.")
-    input("Pressione Enter para sair...")
+# Executa o programa com tratamento de erro para terminais
+if __name__ == "__main__":
+    # No macOS, tenta executar diretamente primeiro
+    if platform.system() == "Darwin":
+        try:
+            # Configura ambiente para macOS
+            os.environ.setdefault('TERM', 'xterm-256color')
+            if 'LC_ALL' not in os.environ:
+                try:
+                    os.environ['LC_ALL'] = 'pt_BR.UTF-8'
+                except:
+                    os.environ['LC_ALL'] = 'C.UTF-8'
+            
+            print("🚀 Iniciando TaskFast para macOS...")
+            curses.wrapper(main)
+            sys.exit(0)
+            
+        except KeyboardInterrupt:
+            print("\n👋 Programa encerrado pelo usuário.")
+            sys.exit(0)
+        except Exception as e:
+            print(f"⚠️ Interface gráfica não funcionou: {e}")
+            print("Tentando modo alternativo...")
+    
+    # Para outros sistemas ou se macOS falhou, verifica compatibilidade
+    compativel, mensagem = verificar_compatibilidade_terminal()
+    
+    if not compativel:
+        print(f"⚠️  Aviso: {mensagem}")
+        resposta = input("Deseja executar em modo texto simples? (s/N): ").strip().lower()
+        if resposta in ['s', 'sim', 'y', 'yes']:
+            executar_modo_fallback()
+        else:
+            print("Dicas para resolver:")
+            print("- macOS: Use Terminal.app ou iTerm2")
+            print("- Windows: Use Windows Terminal, PowerShell ou cmd")
+            print("- Configure: export TERM=xterm-256color")
+        sys.exit(0)
+    
+    # Se o terminal é compatível, tenta executar normalmente
+    try:
+        print(f"✅ {mensagem}")
+        curses.wrapper(main)
+    except KeyboardInterrupt:
+        print("\n👋 Programa interrompido pelo usuário.")
+    except Exception as e:
+        print(f"\n❌ Erro inesperado: {e}")
+        print("\n🔧 Soluções possíveis:")
+        print("1. Execute em um terminal dedicado:")
+        if platform.system() == "Darwin":  # macOS
+            print("   - Terminal.app (Aplicações > Utilitários > Terminal)")
+            print("   - iTerm2 (recomendado): https://iterm2.com")
+        elif platform.system() == "Windows":
+            print("   - Windows Terminal (recomendado)")
+            print("   - PowerShell ou Prompt de Comando")
+        else:  # Linux/Unix
+            print("   - Terminal nativo do sistema")
+        
+        print("\n2. Instale dependências se necessário:")
+        if platform.system() == "Windows":
+            print("   pip install windows-curses")
+        
+        print("\n" + "─" * 50)
+        resposta = input("Tentar modo texto simples? (s/N): ").strip().lower()
+        if resposta in ['s', 'sim', 'y', 'yes']:
+            try:
+                executar_modo_fallback()
+            except KeyboardInterrupt:
+                print("\n👋 Programa encerrado.")
+            except Exception as fallback_error:
+                print(f"❌ Erro no modo fallback: {fallback_error}")
+        else:
+            print("\n📞 Para suporte: https://github.com/andregrps2/TaskFast")
