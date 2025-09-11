@@ -1,0 +1,28 @@
+# Arquivos Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+
+# Arquivos de dados do aplicativo
+checklist_historico.json
+checklist_pendentes.json
+
+# Arquivos do PyInstaller
+*.spec
+
+# Arquivos do sistema
+.DS_Store
+Thumbs.db
+
+# Arquivos de IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
