@@ -530,6 +530,7 @@ def main(stdscr):
             linha_tarefas = 2
 
         # SEPARADOR VERTICAL (apenas se não estiver no modo edição)
+        # Melhoria: Remove linha vertical quando criando nova tarefa para usar tela inteira
         if not modo_edicao:
             for i in range(height):
                 stdscr.addstr(i, separador_x, "│", curses.A_DIM)
