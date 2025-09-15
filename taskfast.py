@@ -7,8 +7,8 @@ import calendar
 import locale
 import platform
 from config import (
-    Simbolos, obter_cores_tema, inicializar_pares_cores, 
-    ConfigGeral, Textos, obter_info_tema, alterar_tema, listar_temas
+    obter_simbolos_tema, obter_cores_tema, obter_textos_tema, inicializar_pares_cores, 
+    ConfigGeral, TextosGerais, obter_info_tema, alterar_tema, listar_temas
 )
 
 # Obtém o diretório onde o executável está localizado
@@ -332,10 +332,10 @@ def desenhar_legendas_compactas(stdscr, linha_inicial, col_width, offset_x=0):
         ("t = hoje", curses.A_DIM),
         ("", curses.A_DIM),  # Espaço
         ("CORES", curses.A_BOLD | curses.color_pair(4)),
-        (Textos.LABEL_CONCLUIDA, curses.color_pair(1)),
-        (Textos.LABEL_HOJE, curses.color_pair(7)),
-        (Textos.LABEL_PASSADO, curses.color_pair(8)),
-        (Textos.LABEL_FUTURO, curses.color_pair(9)),
+        (obter_textos_tema().LABEL_CONCLUIDA, curses.color_pair(1)),
+        (obter_textos_tema().LABEL_HOJE, curses.color_pair(7)),
+        (obter_textos_tema().LABEL_PASSADO, curses.color_pair(8)),
+        (obter_textos_tema().LABEL_FUTURO, curses.color_pair(9)),
     ]
     
     legendas_col2 = [
@@ -381,14 +381,24 @@ def mostrar_info_tema(stdscr):
     stdscr.addstr(linha_atual, 2, f"Tema atual: {info_tema['nome']}", curses.color_pair(5))
     linha_atual += 1
     stdscr.addstr(linha_atual, 2, f"Descrição: {info_tema['descricao']}", curses.A_DIM)
-    linha_atual += 3
+    linha_atual += 1
+    
+    # Mostra símbolos do tema atual
+    simbolos = info_tema['simbolos']
+    textos = obter_textos_tema()
+    stdscr.addstr(linha_atual, 2, f"Símbolos: {simbolos.FORMATO_CONCLUIDA} / {simbolos.FORMATO_PENDENTE}", curses.A_DIM)
+    linha_atual += 1
+    stdscr.addstr(linha_atual, 2, f"Título: {textos.TITULO_PRINCIPAL}", curses.A_DIM)
+    linha_atual += 2
     
     # Lista de temas disponíveis
     stdscr.addstr(linha_atual, 2, "Temas disponíveis:", curses.A_BOLD | curses.color_pair(4))
     linha_atual += 1
     
     for i, (nome, descricao) in enumerate(temas):
-        marcador = "→ " if nome == info_tema['nome'] else "  "
+        # Usar o ponteiro do tema atual para mostrar seleção
+        simbolos_tema = obter_simbolos_tema()
+        marcador = simbolos_tema.PONTEIRO_SELECAO if nome == info_tema['nome'] else "  "
         cor = curses.color_pair(5) if nome == info_tema['nome'] else curses.A_DIM
         texto = f"{marcador}{i+1}. {nome} - {descricao}"
         
@@ -510,9 +520,13 @@ def main(stdscr):
             linha_tarefas = 4
         else:
             # Cabeçalho da coluna esquerda - TAREFAS
-            titulo_tarefas = "📋 LISTA DE TAREFAS"
+            textos_tema = obter_textos_tema()
+            simbolos_tema = obter_simbolos_tema()
+            titulo_tarefas = textos_tema.TITULO_PRINCIPAL
             stdscr.addstr(0, 2, titulo_tarefas, curses.A_BOLD | curses.color_pair(4))
-            stdscr.addstr(1, 2, "─" * min(len(titulo_tarefas), col_esquerda_width - 4), curses.A_DIM)
+            # Usa separador do tema
+            separador = simbolos_tema.SEPARADOR_LINHA[:min(len(titulo_tarefas), col_esquerda_width - 4)]
+            stdscr.addstr(1, 2, separador, curses.A_DIM)
             linha_tarefas = 2
 
         # SEPARADOR VERTICAL
@@ -544,8 +558,9 @@ def main(stdscr):
         for i, t in enumerate(tarefas):
             if linha_atual_tarefa >= height - 4:  # Para se chegou no final da tela
                 break
-                
-            prefixo = "[x]" if t["feito"] else "[ ]"
+            
+            simbolos = obter_simbolos_tema()
+            prefixo = simbolos.FORMATO_CONCLUIDA if t["feito"] else simbolos.FORMATO_PENDENTE
             texto_tarefa = t['texto']
             
             # Mostra tempo relativo da tarefa (passado OU futuro)
@@ -565,18 +580,18 @@ def main(stdscr):
                 if modo_selecao_multipla:
                     # Modo seleção múltipla - indica múltiplas seleções possíveis
                     if i in tarefas_selecionadas:
-                        stdscr.addstr(linha_atual_tarefa, 0, "◉", curses.A_BOLD | curses.color_pair(6))  # Selecionada
+                        stdscr.addstr(linha_atual_tarefa, 0, simbolos.MARCA_TEMA, curses.A_BOLD | curses.color_pair(6))  # Selecionada
                     else:
-                        stdscr.addstr(linha_atual_tarefa, 0, "◎", curses.A_BOLD | curses.color_pair(4))  # Cursor no modo múltiplo
+                        stdscr.addstr(linha_atual_tarefa, 0, simbolos.SETA_DIREITA, curses.A_BOLD | curses.color_pair(4))  # Cursor no modo múltiplo
                 else:
-                    # Modo normal - seta indicadora
-                    stdscr.addstr(linha_atual_tarefa, 0, "►", curses.A_BOLD | curses.color_pair(4))
+                    # Modo normal - seta indicadora do tema
+                    stdscr.addstr(linha_atual_tarefa, 0, simbolos.PONTEIRO_SELECAO, curses.A_BOLD | curses.color_pair(4))
             elif modo_selecao_multipla and i in tarefas_selecionadas:
                 # Tarefa selecionada mas não é o cursor atual
-                stdscr.addstr(linha_atual_tarefa, 0, "◉", curses.A_BOLD | curses.color_pair(6))
+                stdscr.addstr(linha_atual_tarefa, 0, simbolos.MARCA_TEMA, curses.A_BOLD | curses.color_pair(6))
             elif i == idx and modo_edicao:
                 # Destacar onde a nova tarefa será inserida
-                stdscr.addstr(linha_atual_tarefa, 0, "►", curses.A_BOLD | curses.color_pair(4))
+                stdscr.addstr(linha_atual_tarefa, 0, simbolos.PONTEIRO_SELECAO, curses.A_BOLD | curses.color_pair(4))
             
             # Quebra o texto em múltiplas linhas se necessário
             if len(linha_completa) <= max_texto_width:
@@ -1118,7 +1133,8 @@ def executar_modo_fallback():
             print("Nenhuma tarefa para hoje.")
         else:
             for i, tarefa in enumerate(tarefas):
-                status = Simbolos.FORMATO_CONCLUIDA if tarefa["feito"] else Simbolos.FORMATO_PENDENTE
+                simbolos = obter_simbolos_tema()
+                status = simbolos.FORMATO_CONCLUIDA if tarefa["feito"] else simbolos.FORMATO_PENDENTE
                 tempo_relativo = ""
                 if 'origem' in tarefa and not tarefa["feito"]:
                     tempo_relativo = calcular_tempo_relativo(tarefa['origem'], data_str)

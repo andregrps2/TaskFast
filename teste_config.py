@@ -4,8 +4,8 @@ Teste das configurações do TaskFast
 """
 
 from config import (
-    Simbolos, obter_cores_tema, obter_info_tema, 
-    listar_temas, alterar_tema, Textos
+    obter_simbolos_tema, obter_cores_tema, obter_textos_tema, obter_info_tema, 
+    listar_temas, alterar_tema, TEMA_ATUAL
 )
 
 def main():
@@ -14,10 +14,13 @@ def main():
     print("=" * 50)
     
     # Teste de símbolos
-    print("\n1. SÍMBOLOS:")
-    print(f"   Tarefa concluída: {Simbolos.FORMATO_CONCLUIDA}")
-    print(f"   Tarefa pendente:  {Simbolos.FORMATO_PENDENTE}")
-    print(f"   Separador:        {Simbolos.SEPARADOR_LINHA}")
+    simbolos = obter_simbolos_tema()
+    print("\n1. SÍMBOLOS DO TEMA ATUAL:")
+    print(f"   Tarefa concluída: {simbolos.FORMATO_CONCLUIDA}")
+    print(f"   Tarefa pendente:  {simbolos.FORMATO_PENDENTE}")
+    print(f"   Ponteiro seleção: {simbolos.PONTEIRO_SELECAO}")
+    print(f"   Marca tema:       {simbolos.MARCA_TEMA}")
+    print(f"   Separador:        {simbolos.SEPARADOR_LINHA[:15]}...")
     
     # Teste de tema atual
     print("\n2. TEMA ATUAL:")
@@ -40,15 +43,39 @@ def main():
         print(f"{marcador}{nome}: {desc}")
     
     # Teste de textos
-    print("\n5. TEXTOS CONFIGURADOS:")
-    print(f"   {Textos.LABEL_CONCLUIDA}")
-    print(f"   {Textos.LABEL_HOJE}")
-    print(f"   {Textos.LABEL_PASSADO}")
-    print(f"   {Textos.LABEL_FUTURO}")
+    textos = obter_textos_tema()
+    print("\n5. TEXTOS DO TEMA:")
+    print(f"   Título: {textos.TITULO_PRINCIPAL}")
+    print(f"   {textos.LABEL_CONCLUIDA}")
+    print(f"   {textos.LABEL_HOJE}")
+    print(f"   {textos.LABEL_PASSADO}")
+    print(f"   {textos.LABEL_FUTURO}")
+    
+    # Teste comparativo de todos os temas
+    print("\n6. COMPARAÇÃO VISUAL DOS TEMAS:")
+    print("=" * 50)
+    
+    tema_original = TEMA_ATUAL
+    
+    for nome_tema, _ in temas:
+        alterar_tema(nome_tema)
+        simbolos = obter_simbolos_tema()
+        textos = obter_textos_tema()
+        
+        print(f"\n🎨 TEMA: {nome_tema}")
+        print(f"   Título:     {textos.TITULO_PRINCIPAL}")
+        print(f"   Concluída:  {simbolos.FORMATO_CONCLUIDA}")
+        print(f"   Pendente:   {simbolos.FORMATO_PENDENTE}")
+        print(f"   Ponteiro:   {simbolos.PONTEIRO_SELECAO}Item selecionado")
+        print(f"   Marca:      {simbolos.MARCA_TEMA}Item marcado")
+        print(f"   Separador:  {simbolos.SEPARADOR_LINHA[:20]}")
+    
+    # Restaura tema original
+    alterar_tema(tema_original)
     
     print("\n" + "=" * 50)
     print("✓ Todas as configurações funcionam corretamente!")
-    print("✓ O arquivo config.py foi criado com sucesso!")
+    print("✓ Cada tema tem símbolos únicos e visuais distintos!")
     print("✓ Use Shift+T no programa principal para alternar temas")
     print("=" * 50)
 
