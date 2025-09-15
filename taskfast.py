@@ -207,6 +207,8 @@ def salvar_tarefas_do_dia(historico, data_str, tarefas):
     
     # Salva pendentes atualizadas
     salvar_pendentes(pendentes_atuais)
+    # Persistência imediata do histórico (antes só era feito ao sair / trocar dia)
+    salvar_historico(historico)
 
 def formatar_data_completa(data):
     """Formata data completa em português"""
@@ -669,6 +671,8 @@ def main(stdscr):
                 if nova_tarefa.strip():
                     tarefas.insert(idx + 1, {"texto": nova_tarefa.strip(), "feito": False})
                     idx += 1
+                    # Persistir imediatamente após adicionar
+                    salvar_tarefas_do_dia(historico, data_str, tarefas)
                 modo_edicao = False
                 nova_tarefa = ""
             elif tecla in (curses.KEY_BACKSPACE, 127, 8):
@@ -838,6 +842,8 @@ def main(stdscr):
                     else:
                         # Modo normal, marca/desmarca tarefa
                         tarefas[idx]["feito"] = not tarefas[idx]["feito"]
+                    # Persistir após toggle (multi ou single)
+                    salvar_tarefas_do_dia(historico, data_str, tarefas)
             elif tecla == 32:  # Espaço marca/desmarca ou marca seleções múltiplas
                 if tarefas:
                     if modo_selecao_multipla:
@@ -864,6 +870,8 @@ def main(stdscr):
                     else:
                         # Modo normal, marca/desmarca tarefa
                         tarefas[idx]["feito"] = not tarefas[idx]["feito"]
+                    # Persistir após toggle (multi ou single)
+                    salvar_tarefas_do_dia(historico, data_str, tarefas)
             elif char == "o":
                 modo_edicao = True
                 nova_tarefa = ""
@@ -915,6 +923,8 @@ def main(stdscr):
                             salvar_pendentes(pendentes_atuais)
                         
                         idx = max(0, idx - 1)
+                    # Persistir após deletar/cortar
+                    salvar_tarefas_do_dia(historico, data_str, tarefas)
                     
                     last_key = None
                     continue
@@ -946,6 +956,8 @@ def main(stdscr):
                     nova_tarefa["origem"] = data_str  # Atualiza origem para o dia atual
                     tarefas.append(nova_tarefa)
                     idx = 0
+                # Persistir após colar
+                salvar_tarefas_do_dia(historico, data_str, tarefas)
                 last_key = None
             elif char == "P":  # Colar em cima da tarefa selecionada (Shift+P)
                 if tarefas_copiadas:  # Múltiplas tarefas copiadas
@@ -971,6 +983,8 @@ def main(stdscr):
                         # Se não há tarefas, adiciona como primeira
                         tarefas.append(nova_tarefa)
                         idx = 0
+                # Persistir após colar
+                salvar_tarefas_do_dia(historico, data_str, tarefas)
                 last_key = None
             else:
                 last_key = None
