@@ -6,6 +6,10 @@ from datetime import datetime, timedelta
 import calendar
 import locale
 import platform
+from config import (
+    Simbolos, obter_cores_tema, inicializar_pares_cores, 
+    ConfigGeral, Textos, obter_info_tema, alterar_tema, listar_temas
+)
 
 # Obtém o diretório onde o executável está localizado
 if getattr(sys, 'frozen', False):
@@ -15,8 +19,8 @@ else:
     # Se está executando como script Python
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-ARQUIVO = os.path.join(BASE_DIR, "checklist_historico.json")
-ARQUIVO_PENDENTES = os.path.join(BASE_DIR, "checklist_pendentes.json")
+ARQUIVO = os.path.join(BASE_DIR, ConfigGeral.ARQUIVO_HISTORICO)
+ARQUIVO_PENDENTES = os.path.join(BASE_DIR, ConfigGeral.ARQUIVO_PENDENTES)
 
 def carregar_historico():
     if os.path.exists(ARQUIVO):
@@ -128,27 +132,27 @@ def calcular_tempo_relativo(data_origem_str, data_atual_str):
 def obter_cor_tarefa(tarefa, data_str):
     """Determina a cor da tarefa baseada no tempo relativo"""
     if tarefa["feito"]:
-        return curses.color_pair(1)  # Verde para concluídas
+        return curses.color_pair(1)  # Tarefas concluídas
     
     if 'origem' not in tarefa:
-        return curses.color_pair(7)  # Amarelo para tarefas de hoje (sem origem)
+        return curses.color_pair(7)  # Tarefas de hoje (sem origem)
     
     try:
-        data_origem = datetime.strptime(tarefa['origem'], "%Y-%m-%d").date()
-        data_atual = datetime.strptime(data_str, "%Y-%m-%d").date()
+        data_origem = datetime.strptime(tarefa['origem'], ConfigGeral.FORMATO_DATA).date()
+        data_atual = datetime.strptime(data_str, ConfigGeral.FORMATO_DATA).date()
         
         if data_origem == data_atual:
-            return curses.color_pair(7)  # Amarelo - tarefa de hoje
+            return curses.color_pair(7)  # Tarefas de hoje
         elif data_origem < data_atual:
-            return curses.color_pair(8)  # Laranja simulado (magenta) - tarefa do passado
+            return curses.color_pair(8)  # Tarefas do passado
         else:
-            return curses.color_pair(9)  # Cinza escuro - tarefa do futuro
+            return curses.color_pair(9)  # Tarefas do futuro
     except:
-        return curses.color_pair(2)  # Branco padrão se houver erro
+        return curses.color_pair(2)  # Cor padrão se houver erro
 
 def get_data_string(data):
-    """Converte datetime para string no formato YYYY-MM-DD"""
-    return data.strftime("%Y-%m-%d")
+    """Converte datetime para string no formato configurado"""
+    return data.strftime(ConfigGeral.FORMATO_DATA)
 
 def carregar_tarefas_do_dia(historico, data_str):
     """Carrega tarefas do dia específico"""
@@ -328,10 +332,10 @@ def desenhar_legendas_compactas(stdscr, linha_inicial, col_width, offset_x=0):
         ("t = hoje", curses.A_DIM),
         ("", curses.A_DIM),  # Espaço
         ("CORES", curses.A_BOLD | curses.color_pair(4)),
-        ("[x] = concluído", curses.color_pair(1)),
-        ("Amarelo = hoje", curses.color_pair(7)),
-        ("Laranja = passado", curses.color_pair(8)),
-        ("Cinza = futuro", curses.color_pair(9)),
+        (Textos.LABEL_CONCLUIDA, curses.color_pair(1)),
+        (Textos.LABEL_HOJE, curses.color_pair(7)),
+        (Textos.LABEL_PASSADO, curses.color_pair(8)),
+        (Textos.LABEL_FUTURO, curses.color_pair(9)),
     ]
     
     legendas_col2 = [
@@ -343,6 +347,7 @@ def desenhar_legendas_compactas(stdscr, linha_inicial, col_width, offset_x=0):
         ("dd = cortar/deletar", curses.A_DIM),
         ("p = colar embaixo", curses.A_DIM),
         ("P = colar em cima", curses.A_DIM),
+        ("Shift+T = alterar tema", curses.A_DIM),
         ("ESC = sair", curses.A_DIM),
     ]
     
@@ -359,6 +364,66 @@ def desenhar_legendas_compactas(stdscr, linha_inicial, col_width, offset_x=0):
                 stdscr.addstr(linha_atual + i, col2_start, texto[:col1_width], cor)
     
     return linha_atual + max(len(legendas_col1), len(legendas_col2))
+
+def mostrar_info_tema(stdscr):
+    """Mostra informações do tema atual e permite alternar"""
+    info_tema = obter_info_tema()
+    temas = listar_temas()
+    
+    altura, largura = stdscr.getmaxyx()
+    linha_atual = 2
+    
+    # Título
+    stdscr.addstr(linha_atual, 2, "CONFIGURAÇÃO DE TEMA", curses.A_BOLD | curses.color_pair(4))
+    linha_atual += 2
+    
+    # Tema atual
+    stdscr.addstr(linha_atual, 2, f"Tema atual: {info_tema['nome']}", curses.color_pair(5))
+    linha_atual += 1
+    stdscr.addstr(linha_atual, 2, f"Descrição: {info_tema['descricao']}", curses.A_DIM)
+    linha_atual += 3
+    
+    # Lista de temas disponíveis
+    stdscr.addstr(linha_atual, 2, "Temas disponíveis:", curses.A_BOLD | curses.color_pair(4))
+    linha_atual += 1
+    
+    for i, (nome, descricao) in enumerate(temas):
+        marcador = "→ " if nome == info_tema['nome'] else "  "
+        cor = curses.color_pair(5) if nome == info_tema['nome'] else curses.A_DIM
+        texto = f"{marcador}{i+1}. {nome} - {descricao}"
+        
+        if linha_atual < altura - 4:
+            stdscr.addstr(linha_atual, 2, texto[:largura-4], cor)
+        linha_atual += 1
+    
+    linha_atual += 2
+    stdscr.addstr(linha_atual, 2, "Pressione 1-4 para alterar tema, ESC para voltar", curses.A_DIM)
+    
+    stdscr.refresh()
+    
+    # Loop de seleção de tema
+    while True:
+        key = stdscr.getch()
+        
+        if key == 27:  # ESC
+            break
+        elif key >= ord('1') and key <= ord('4'):
+            numero_tema = key - ord('1')
+            if numero_tema < len(temas):
+                nome_tema = temas[numero_tema][0]
+                if alterar_tema(nome_tema):
+                    # Reinicializa cores com novo tema
+                    try:
+                        inicializar_pares_cores()
+                        stdscr.clear()
+                        stdscr.addstr(altura//2, largura//2 - 15, 
+                                    f"Tema alterado para: {nome_tema}", 
+                                    curses.A_BOLD | curses.color_pair(1))
+                        stdscr.refresh()
+                        curses.napms(1000)  # Pausa de 1 segundo
+                    except:
+                        pass
+                break
 
 def main(stdscr):
     # Configurações iniciais para otimizar a interface
@@ -384,17 +449,9 @@ def main(stdscr):
         curses.start_color()
         curses.use_default_colors()  # Usa cores padrão do terminal
         
-        # Define pares de cores de forma mais segura
+        # Define pares de cores usando configuração do tema
         try:
-            curses.init_pair(1, curses.COLOR_GREEN, -1)    # feito
-            curses.init_pair(2, curses.COLOR_WHITE, -1)    # pendente normal
-            curses.init_pair(3, curses.COLOR_BLACK, curses.COLOR_WHITE)    # highlight
-            curses.init_pair(4, curses.COLOR_CYAN, -1)     # destaque especial
-            curses.init_pair(5, curses.COLOR_YELLOW, -1)   # data atual
-            curses.init_pair(6, curses.COLOR_RED, -1)      # hoje
-            curses.init_pair(7, curses.COLOR_YELLOW, -1)   # tarefa de hoje
-            curses.init_pair(8, curses.COLOR_MAGENTA, -1)  # tarefa do passado (laranja simulado)
-            curses.init_pair(9, 8, -1)                    # tarefa do futuro (cinza escuro)
+            inicializar_pares_cores()
         except:
             # Se falhar ao configurar cores, usa padrões básicos
             for i in range(1, 10):
@@ -660,6 +717,18 @@ def main(stdscr):
                     cursor_x = box_start + box_width - 2
                 
                 stdscr.move(nova_linha_y + 1, cursor_x)
+        
+        # Linha de status na parte inferior (mostra tema atual)
+        if not modo_edicao and height > 3:
+            info_tema = obter_info_tema()
+            status_texto = f"Tema: {info_tema['nome']} | Shift+T para alterar"
+            status_y = height - 1
+            # Trunca se necessário
+            status_display = status_texto[:width-2] if len(status_texto) > width-2 else status_texto
+            try:
+                stdscr.addstr(status_y, 1, status_display, curses.A_DIM | curses.color_pair(4))
+            except:
+                pass  # Ignora se não conseguir desenhar na última linha
 
         tecla = stdscr.getch()
 
@@ -816,6 +885,9 @@ def main(stdscr):
                 # Limpa seleções antigas (índices não são mais válidos)
                 tarefas_selecionadas.clear()
                 ultima_direcao = None
+            elif char == "T":  # Alternar tema (Shift+T)
+                mostrar_info_tema(stdscr)
+                stdscr.clear()  # Limpa tela após voltar
             elif tecla in (curses.KEY_ENTER, 10, 13):  # Enter marca/desmarca ou marca seleções múltiplas
                 if tarefas:
                     if modo_selecao_multipla:
@@ -1046,7 +1118,7 @@ def executar_modo_fallback():
             print("Nenhuma tarefa para hoje.")
         else:
             for i, tarefa in enumerate(tarefas):
-                status = "[✓]" if tarefa["feito"] else "[ ]"
+                status = Simbolos.FORMATO_CONCLUIDA if tarefa["feito"] else Simbolos.FORMATO_PENDENTE
                 tempo_relativo = ""
                 if 'origem' in tarefa and not tarefa["feito"]:
                     tempo_relativo = calcular_tempo_relativo(tarefa['origem'], data_str)
