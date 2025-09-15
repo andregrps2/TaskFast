@@ -529,9 +529,10 @@ def main(stdscr):
             stdscr.addstr(1, 2, separador, curses.A_DIM)
             linha_tarefas = 2
 
-        # SEPARADOR VERTICAL
-        for i in range(height):
-            stdscr.addstr(i, separador_x, "│", curses.A_DIM)
+        # SEPARADOR VERTICAL (apenas se não estiver no modo edição)
+        if not modo_edicao:
+            for i in range(height):
+                stdscr.addstr(i, separador_x, "│", curses.A_DIM)
 
         # COLUNA DIREITA - CALENDÁRIO E LEGENDAS
         col_direita_x = separador_x + 2
@@ -680,10 +681,10 @@ def main(stdscr):
                 linha_atual_tarefa += 0  # Pode adicionar 1 aqui se quiser mais espaço
 
         if modo_edicao:
-            # Caixa de entrada da nova tarefa na coluna esquerda
+            # Caixa de entrada da nova tarefa usando a tela inteira
             nova_linha_y = linha_tarefas + len(tarefas) + 2
             if nova_linha_y < height - 4:  # Verifica se cabe na tela
-                box_width = min(col_esquerda_width - 4, 60)  # Aumenta largura máxima da caixa
+                box_width = width - 4  # Usa largura total da tela menos margens
                 box_start = 2
                 
                 stdscr.addstr(nova_linha_y, box_start, "┌" + "─" * (box_width - 2) + "┐", curses.A_BOLD)
